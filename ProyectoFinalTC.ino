@@ -1,7 +1,4 @@
-// Adelanto parte maquina de estados y transiciones
 
-#include "StateMachineLib.h"
-#include "AsyncTaskLib.h"
 
 #define DEBUG(a) Serial.print(millis()); Serial.print(": "); Serial.println(a);
 
@@ -36,14 +33,21 @@ StateMachine stateMachine(5, 8);
 Input input;
 
 
-
 void read_Temperatura(void){
 
-  //read thermistor value
+#if defined TEMP_DIGITAL
+	Serial.println("TEMP_DIGITAL");
+	// Read temperature as Celsius (the default)
+  tempC = dht.readTemperature();
+#else
+	Serial.println("TEMP_ANALOG");
+	//read thermistor value
   long a =1023 - analogRead(analogPin);
   //the calculating formula of temperature
   tempC = beta /(log((1025.0 * 10 / a - 10) / 10) + beta / 298.0) - 273.0;
-  Serial.print("TEMP: ");
+#endif
+
+	Serial.print("TEMP: ");
 	Serial.println(tempC);
 	if(tempC > 28){
     input = Input::Sign_P;
@@ -82,11 +86,11 @@ void setupStateMachine()
 	stateMachine.SetOnEntering(EVENTOS, funct_Eventos);
   stateMachine.SetOnEntering(ALARMA, funct_Alarma);
 
-	stateMachine.SetOnLeaving(INICIO, []() {Serial.println("Leaving INICIO"); });
-	stateMachine.SetOnLeaving(BLOQUEADO, []() {Serial.println("Leaving BLOQUEADO"); });
+	stateMachine.SetOnLeaving(INICIO, funct_out_Inicio);
+	stateMachine.SetOnLeaving(BLOQUEADO, funct_out_Bloqueado);
 	stateMachine.SetOnLeaving(MONITOREO, funt_out_Monitoreo);
-	stateMachine.SetOnLeaving(EVENTOS, []() {Serial.println("Leaving EVENTOS"); });
-  stateMachine.SetOnLeaving(ALARMA, []() {Serial.println("Leaving ALARMA"); });
+	stateMachine.SetOnLeaving(EVENTOS, funct_out_Eventos);
+  stateMachine.SetOnLeaving(ALARMA, funct_out_Alarma);
 }
 
 void funt_out_Monitoreo(void){
@@ -115,6 +119,23 @@ void funct_Alarma(void){
 	Serial.println("ALARMA");
 }
 
+void funct_out_Inicio(void){
+	Serial.println("Leaving INICIO");
+}
+
+void funct_out_Bloqueado(void){
+	Serial.println("Leaving BLOQUEADO");
+}
+
+void funct_out_Eventos(void){
+	Serial.println("Leaving EVENTOS");
+	
+}
+void funct_out_Alarma(void){
+	Serial.println("Leaving ALARMA");
+}
+
+
 void setup() 
 {
   
@@ -124,6 +145,7 @@ void setup()
 	setupStateMachine();	
 	Serial.println("Start Machine Started");
 
+	dht.begin();
 	// Initial state
 	stateMachine.SetState(INICIO, false, true);
 }
@@ -149,7 +171,7 @@ int readInput()
 
 		switch (incomingChar)
 		{
-			case 'P': currentInput = Input::Sign_P; 	break;
+			case 'P': currentInput = Input::Sign_P; break;
 			case 'T': currentInput = Input::Sign_T; break;
 			case 'S': currentInput = Input::Sign_S; break;
 			default: break;
